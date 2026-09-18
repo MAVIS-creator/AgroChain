@@ -1,0 +1,28 @@
+{
+  "name": "b2b",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "test:contracts": "hardhat test",
+    "test:api": "node test/api.test.mjs",
+    "compile": "hardhat compile",
+    "deploy": "node scripts/deploy.js",
+    "dataset:build": "node scripts/dataset-pipeline.mjs",
+    "api:dataset": "node server/dataset-api.mjs",
+    "setup:test": "node scripts/setup-and-test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.4",
+    "@nomicfoundation/hardhat-viem": "^3.0.2",
+    "@types/node": "^22.19.11",
+    "ethers": "^6.16.0",
+    "hardhat": "^3.1.8",
+    "typescript": "~5.8.0"
+  },
+  "type": "module"
+}
