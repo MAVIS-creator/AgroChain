@@ -92,13 +92,13 @@ AgroChain enforces strict role-based access control (RBAC) across 11 defined sta
 
 ```mermaid
 flowchart LR
-    A[Agro-Input Registered] --> B[Batch Created / Farm Logged]
-    B --> C[Harvest & Quality Checked]
-    C --> D[Storage IoT Telemetry]
-    D --> E[Industrial Processing]
-    E --> F[Logistics Dispatch]
-    F --> G[Confirmed Delivery]
-    G --> H[Consumer QR Verified]
+    A["Agro-input registered"] --> B["Batch created and farm logged"]
+    B --> C["Harvest and quality checked"]
+    C --> D["Storage IoT telemetry"]
+    D --> E["Industrial processing"]
+    E --> F["Logistics dispatch"]
+    F --> G["Confirmed delivery"]
+    G --> H["Consumer QR verification"]
 ```
 
 Lifecycle stages advance strictly forward:
