@@ -13,6 +13,9 @@ export default function AnalyticsPage({
   const [selectedBatchId, setSelectedBatchId] = useState(allBatches[0]?.batchId || "20261001");
   const [selectedCrop, setSelectedCrop] = useState("Cassava");
   const [transportLatency, setTransportLatency] = useState("14");
+  const datasetHasRecords = (datasetSummary?.summary?.totalRecords ?? 0) > 0;
+  const hasLossMetric = datasetHasRecords && Number.isFinite(datasetSummary?.summary?.avgLossPct);
+  const hasTransportMetric = datasetHasRecords && Number.isFinite(datasetSummary?.summary?.avgTransportHours);
 
   const cassavaCount = allBatches.filter((b) => b.cropType === 0 || b.cropType === "CASSAVA").length;
   const maizeCount = allBatches.filter((b) => b.cropType === 1 || b.cropType === "MAIZE").length;
@@ -75,9 +78,9 @@ export default function AnalyticsPage({
             <span className="material-symbols-outlined text-red-600 text-[18px]">trending_down</span>
           </div>
           <div className="mt-2 text-2xl font-bold text-red-700">
-            {datasetSummary?.summary?.avgLossPct ?? 9.2}%
+            {hasLossMetric ? `${datasetSummary.summary.avgLossPct}%` : "N/A"}
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">Empirical regional baseline</p>
+          <p className="mt-1 text-[11px] text-slate-500">Modeled loss estimate; not an observed loss rate</p>
         </div>
 
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
@@ -86,9 +89,9 @@ export default function AnalyticsPage({
             <span className="material-symbols-outlined text-blue-600 text-[18px]">schedule</span>
           </div>
           <div className="mt-2 text-2xl font-bold text-slate-900">
-            {datasetSummary?.summary?.avgTransportHours ?? 11.4} hrs
+            {hasTransportMetric ? `${datasetSummary.summary.avgTransportHours} hrs` : "N/A"}
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">Farm-to-hub transit window</p>
+          <p className="mt-1 text-[11px] text-slate-500">Modeled transit estimate; not journey telemetry</p>
         </div>
       </div>
 
@@ -177,10 +180,10 @@ export default function AnalyticsPage({
                       ? "bg-amber-100 text-amber-800"
                       : "bg-emerald-100 text-emerald-800"
                 }`}>
-                  Risk Level: {riskData?.category || "LOW"}
+                  Risk Level: {riskData?.category || "Not evaluated"}
                 </span>
                 <div className="text-xs font-bold text-slate-700 mt-1">
-                  Score: {riskData?.riskScore ?? 18} / 100
+                  Score: {riskData?.riskScore != null ? `${riskData.riskScore} / 100` : "Run analysis"}
                 </div>
               </div>
             </div>
@@ -195,13 +198,13 @@ export default function AnalyticsPage({
               <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 ${
-                    (riskData?.riskScore ?? 18) > 65
+                    (riskData?.riskScore ?? 0) > 65
                       ? "bg-red-500"
-                      : (riskData?.riskScore ?? 18) > 35
+                      : (riskData?.riskScore ?? 0) > 35
                         ? "bg-amber-500"
                         : "bg-emerald-500"
                   }`}
-                  style={{ width: `${riskData?.riskScore ?? 18}%` }}
+                  style={{ width: `${riskData?.riskScore ?? 0}%` }}
                 />
               </div>
             </div>
@@ -211,8 +214,7 @@ export default function AnalyticsPage({
               <span className="text-xs font-bold text-slate-800">Evaluated Contributing Factors:</span>
               <ul className="space-y-1 text-xs text-slate-600">
                 {(riskData?.contributingFactors || [
-                  "Storage temperature and humidity within safe threshold envelopes.",
-                  "Transit latency compliant with the 48-hour cassava freshness window.",
+                  "Run risk analysis to calculate contributing factors for this batch.",
                 ]).map((factor, idx) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="material-symbols-outlined text-[16px] text-purple-600 shrink-0 mt-0.5">check</span>
@@ -223,7 +225,7 @@ export default function AnalyticsPage({
             </div>
 
             <div className="text-[11px] text-slate-400 pt-1">
-              Methodology: {riskData?.evaluationMethod || "Deterministic environmental & latency heuristic"}. Transparent reproducible score.
+              Methodology: {riskData?.evaluationMethod || "Not evaluated yet"}. Rule-based heuristic, not a trained AI prediction model.
             </div>
           </div>
         </div>
@@ -233,8 +235,8 @@ export default function AnalyticsPage({
       <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h3 className="font-bold text-base text-slate-900">Empirical Regional Agricultural Dataset</h3>
-            <p className="text-xs text-slate-500">Sourced via Our World In Data normalized production statistics</p>
+            <h3 className="font-bold text-base text-slate-900">Agricultural Dataset and Modeled Operational Estimates</h3>
+            <p className="text-xs text-slate-500">Production and yield values: normalized Our World in Data statistics (or local fallback data). Quality grades, loss and transit indicators: synthetic demonstrations.</p>
           </div>
           <span className="text-xs text-slate-500">{datasetRecords.length} records displayed</span>
         </div>
@@ -254,8 +256,8 @@ export default function AnalyticsPage({
                 <th className="py-2.5 px-3 font-semibold">Year</th>
                 <th className="py-2.5 px-3 font-semibold">Crop Type</th>
                 <th className="py-2.5 px-3 font-semibold">Quantity (Tonnes)</th>
-                <th className="py-2.5 px-3 font-semibold">Quality Grade</th>
-                <th className="py-2.5 px-3 font-semibold">Loss Estimate</th>
+                <th className="py-2.5 px-3 font-semibold">Modeled Quality Grade</th>
+                <th className="py-2.5 px-3 font-semibold">Modeled Loss Estimate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -276,7 +278,7 @@ export default function AnalyticsPage({
                       {record.quantityTonnes ? Number(record.quantityTonnes).toLocaleString() : "—"}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600">{record.qualityGrade}</td>
-                    <td className="py-2.5 px-3 font-semibold text-red-700">{record.lossPct}%</td>
+                    <td className="py-2.5 px-3 font-semibold text-red-700">{record.lossPct == null ? "N/A" : `${record.lossPct}%`}</td>
                   </tr>
                 ))
               ) : (
