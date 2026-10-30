@@ -269,9 +269,12 @@ contract AgroChain {
     mapping(uint256 => QualityCertificate) private qualityCertificates;
 
     mapping(uint256 => Shipment) private shipments;
+    mapping(uint256 => bool) private batchHasDispatchedShipment;
+    mapping(uint256 => bool) private batchHasDeliveredShipment;
     uint256[] public allShipmentIds;
 
     mapping(uint256 => Listing) private listings;
+    mapping(uint256 => uint256) public listingCommittedQuantity;
     uint256[] public allListingIds;
 
     mapping(uint256 => Order) private orders;
@@ -488,7 +491,7 @@ contract AgroChain {
     function transferCustody(
         uint256 batchId,
         address newCustodian
-    ) external batchExists(batchId) onlyCustodian(batchId) {
+    ) external batchExists(batchId) onlyActiveStakeholder onlyCustodian(batchId) {
         require(newCustodian != address(0), "AgroChain: Zero address not permitted");
         require(newCustodian != msg.sender, "AgroChain: Cannot transfer custody to self");
         require(stakeholders[newCustodian].exists, "AgroChain: New custodian must be registered");
@@ -510,10 +513,13 @@ contract AgroChain {
     function advanceStage(
         uint256 batchId,
         Stage newStage
-    ) external batchExists(batchId) {
+    ) external batchExists(batchId) onlyActiveStakeholder {
         Batch storage batch = batches[batchId];
 
-        require(uint8(newStage) > uint8(batch.stage), "AgroChain: Lifecycle stage must advance forward");
+        require(
+            uint8(newStage) == uint8(batch.stage) + 1,
+            "AgroChain: Lifecycle stage must advance one step"
+        );
         require(batch.stage != Stage.CONSUMER_VERIFIED, "AgroChain: Batch lifecycle already finalized");
 
         // Role enforcement per stage transition
@@ -549,16 +555,33 @@ contract AgroChain {
             );
         }
 
+        if (newStage == Stage.INPUT_VERIFIED) {
+            require(batchInputIds[batchId].length > 0, "AgroChain: Verified input must be linked first");
+        } else if (newStage == Stage.STORED) {
+            require(batchStorageIndices[batchId].length > 0, "AgroChain: Storage reading must be recorded first");
+        } else if (newStage == Stage.PROCESSED) {
+            require(processingRecords[batchId].exists, "AgroChain: Processing record must be recorded first");
+        } else if (newStage == Stage.IN_TRANSIT) {
+            require(batchHasDispatchedShipment[batchId], "AgroChain: Shipment must be dispatched first");
+        } else if (newStage == Stage.DELIVERED) {
+            require(batchHasDeliveredShipment[batchId], "AgroChain: Shipment delivery must be confirmed first");
+        }
+
         batch.stage = newStage;
         emit StageUpdated(batchId, newStage, msg.sender);
     }
 
     function recordConsumerVerification(uint256 batchId) external batchExists(batchId) {
         Batch storage batch = batches[batchId];
-        if (batch.stage < Stage.CONSUMER_VERIFIED) {
-            batch.stage = Stage.CONSUMER_VERIFIED;
-            emit StageUpdated(batchId, Stage.CONSUMER_VERIFIED, msg.sender);
-        }
+        require(
+            stakeholders[msg.sender].status == StakeholderStatus.ACTIVE &&
+            roles[msg.sender] == Role.CONSUMER,
+            "AgroChain: Only active consumers can verify products"
+        );
+        require(batch.stage == Stage.DELIVERED, "AgroChain: Only delivered products can be verified");
+
+        batch.stage = Stage.CONSUMER_VERIFIED;
+        emit StageUpdated(batchId, Stage.CONSUMER_VERIFIED, msg.sender);
     }
 
     // ------------------------------------------------------------------------
@@ -619,6 +642,11 @@ contract AgroChain {
         string calldata inputId
     ) external batchExists(batchId) onlyActiveStakeholder {
         require(agroInputs[inputId].exists, "AgroChain: Agro-input not found");
+        require(agroInputs[inputId].isVerified, "AgroChain: Agro-input must be verified before linking");
+        require(
+            agroInputs[inputId].cropApplicability == batches[batchId].cropType,
+            "AgroChain: Input crop does not match batch crop"
+        );
         require(
             msg.sender == batches[batchId].currentCustodian ||
             roles[msg.sender] == Role.FARMER ||
@@ -627,6 +655,13 @@ contract AgroChain {
             msg.sender == admin,
             "AgroChain: Caller unauthorized to link input to batch"
         );
+        require(batches[batchId].stage <= Stage.INPUT_VERIFIED, "AgroChain: Inputs must be linked before farm activity");
+        for (uint256 i = 0; i < batchInputIds[batchId].length; i++) {
+            require(
+                keccak256(bytes(batchInputIds[batchId][i])) != keccak256(bytes(inputId)),
+                "AgroChain: Input already linked to batch"
+            );
+        }
 
         batchInputIds[batchId].push(inputId);
 
@@ -667,6 +702,10 @@ contract AgroChain {
         );
         require(bytes(facility).length > 0, "AgroChain: Storage facility name required");
         require(humidity <= 100, "AgroChain: Invalid relative humidity percentage");
+        require(
+            batches[batchId].stage == Stage.HARVESTED || batches[batchId].stage == Stage.STORED,
+            "AgroChain: Storage record is out of lifecycle order"
+        );
 
         storageReadings.push(StorageReading({
             batchId: batchId,
@@ -708,6 +747,7 @@ contract AgroChain {
         );
         require(bytes(outputProduct).length > 0, "AgroChain: Output product name required");
         require(outputQuantity > 0, "AgroChain: Output quantity must be positive");
+        require(batches[batchId].stage == Stage.STORED, "AgroChain: Batch must be stored before processing");
 
         processingRecords[batchId] = ProcessingRecord({
             batchId: batchId,
@@ -742,6 +782,7 @@ contract AgroChain {
             "AgroChain: Only Regulator, Extension Officer, or Admin can record quality certification"
         );
         require(bytes(qualityGrade).length > 0, "AgroChain: Quality grade required");
+        require(batches[batchId].stage == Stage.PROCESSED, "AgroChain: Batch must be processed before quality certification");
 
         qualityCertificates[batchId] = QualityCertificate({
             batchId: batchId,
@@ -780,14 +821,16 @@ contract AgroChain {
         require(shipmentId > 0, "AgroChain: Invalid shipment ID");
         require(!shipments[shipmentId].exists, "AgroChain: Shipment ID already exists");
         require(transporter != address(0), "AgroChain: Transporter required");
+        require(bytes(originLocation).length > 0 && bytes(destination).length > 0, "AgroChain: Shipment route is required");
+        require(batches[batchId].stage == Stage.PROCESSED, "AgroChain: Batch must be processed before shipment");
         require(
-            roles[transporter] == Role.TRANSPORTER || transporter == msg.sender,
+            roles[transporter] == Role.TRANSPORTER &&
+            stakeholders[transporter].status == StakeholderStatus.ACTIVE,
             "AgroChain: Designated transporter must have TRANSPORTER role"
         );
         require(
             msg.sender == batches[batchId].currentCustodian ||
             roles[msg.sender] == Role.DISTRIBUTOR ||
-            roles[msg.sender] == Role.TRANSPORTER ||
             msg.sender == admin,
             "AgroChain: Unauthorized to create shipment for batch"
         );
@@ -807,6 +850,7 @@ contract AgroChain {
         allShipmentIds.push(shipmentId);
 
         batches[batchId].currentCustodian = transporter;
+        batchHasDispatchedShipment[batchId] = true;
         if (batches[batchId].stage < Stage.IN_TRANSIT) {
             batches[batchId].stage = Stage.IN_TRANSIT;
             emit StageUpdated(batchId, Stage.IN_TRANSIT, msg.sender);
@@ -822,6 +866,10 @@ contract AgroChain {
     ) external onlyActiveStakeholder {
         require(shipments[shipmentId].exists, "AgroChain: Shipment not found");
         require(recipient != address(0), "AgroChain: Recipient address required");
+        require(
+            stakeholders[recipient].exists && stakeholders[recipient].status == StakeholderStatus.ACTIVE,
+            "AgroChain: Recipient must be an active stakeholder"
+        );
 
         Shipment storage shipment = shipments[shipmentId];
         require(shipment.status == ShipmentStatus.DISPATCHED, "AgroChain: Shipment not in dispatched state");
@@ -838,6 +886,7 @@ contract AgroChain {
 
         Batch storage batch = batches[shipment.batchId];
         batch.currentCustodian = recipient;
+        batchHasDeliveredShipment[shipment.batchId] = true;
         if (batch.stage < Stage.DELIVERED) {
             batch.stage = Stage.DELIVERED;
             emit StageUpdated(shipment.batchId, Stage.DELIVERED, msg.sender);
@@ -866,6 +915,7 @@ contract AgroChain {
         require(listingId > 0, "AgroChain: Invalid listing ID");
         require(!listings[listingId].exists, "AgroChain: Listing ID already exists");
         require(quantity > 0, "AgroChain: Quantity must be greater than zero");
+        require(quantity <= batches[batchId].quantity, "AgroChain: Listing exceeds batch quantity");
         require(pricePerUnit > 0, "AgroChain: Price must be positive");
         require(
             msg.sender == batches[batchId].currentCustodian ||
@@ -875,16 +925,33 @@ contract AgroChain {
             "AgroChain: Unauthorized to list batch"
         );
 
+        // Copy optional calldata values into memory before falling back to the
+        // batch's stored metadata. Solidity does not allow a ternary expression
+        // to directly mix `string calldata` and `string storage` references.
+        string memory listingUnit = unit;
+        string memory listingLocation = location;
+        string memory listingQualityGrade = qualityGrade;
+
+        if (bytes(listingUnit).length == 0) {
+            listingUnit = batches[batchId].unit;
+        }
+        if (bytes(listingLocation).length == 0) {
+            listingLocation = batches[batchId].originLocation;
+        }
+        if (bytes(listingQualityGrade).length == 0) {
+            listingQualityGrade = batches[batchId].qualityGrade;
+        }
+
         listings[listingId] = Listing({
             listingId: listingId,
             batchId: batchId,
             seller: msg.sender,
             cropType: batches[batchId].cropType,
             quantity: quantity,
-            unit: bytes(unit).length > 0 ? unit : batches[batchId].unit,
+            unit: listingUnit,
             pricePerUnit: pricePerUnit,
-            location: bytes(location).length > 0 ? location : batches[batchId].originLocation,
-            qualityGrade: bytes(qualityGrade).length > 0 ? qualityGrade : batches[batchId].qualityGrade,
+            location: listingLocation,
+            qualityGrade: listingQualityGrade,
             status: ListingStatus.ACTIVE,
             createdAt: block.timestamp,
             exists: true
@@ -905,7 +972,10 @@ contract AgroChain {
         require(listings[listingId].exists, "AgroChain: Listing does not exist");
         Listing storage listing = listings[listingId];
         require(listing.status == ListingStatus.ACTIVE, "AgroChain: Listing is not active");
-        require(quantity > 0 && quantity <= listing.quantity, "AgroChain: Invalid order quantity");
+        require(
+            quantity > 0 && quantity <= listing.quantity - listingCommittedQuantity[listingId],
+            "AgroChain: Invalid or unavailable order quantity"
+        );
         require(msg.sender != listing.seller, "AgroChain: Cannot order own listing");
 
         uint256 totalPrice = quantity * listing.pricePerUnit;
@@ -924,6 +994,7 @@ contract AgroChain {
         });
 
         allOrderIds.push(orderId);
+        listingCommittedQuantity[listingId] += quantity;
 
         emit OrderPlaced(orderId, listingId, msg.sender, quantity);
     }
@@ -935,6 +1006,17 @@ contract AgroChain {
             msg.sender == order.buyer || msg.sender == order.seller || msg.sender == admin,
             "AgroChain: Unauthorized to update order"
         );
+
+        if (newStatus == OrderStatus.CANCELLED) {
+            require(order.status == OrderStatus.PLACED, "AgroChain: Only unpaid orders can be cancelled");
+            listingCommittedQuantity[order.listingId] -= order.quantity;
+        } else if (newStatus == OrderStatus.SHIPPED) {
+            require(order.status == OrderStatus.PAID, "AgroChain: Order must be paid before shipment");
+        } else if (newStatus == OrderStatus.COMPLETED) {
+            require(order.status == OrderStatus.SHIPPED, "AgroChain: Order must be shipped before completion");
+        } else {
+            revert("AgroChain: Invalid order status transition");
+        }
 
         order.status = newStatus;
         emit OrderStatusUpdated(orderId, newStatus);
@@ -963,8 +1045,14 @@ contract AgroChain {
         require(paymentId > 0, "AgroChain: Invalid payment ID");
         require(!payments[paymentId].exists, "AgroChain: Payment ID already exists");
         require(orders[orderId].exists, "AgroChain: Order not found");
+        Order storage order = orders[orderId];
+        require(msg.sender == order.buyer || msg.sender == admin, "AgroChain: Only order buyer can record payment");
+        require(order.status == OrderStatus.PLACED, "AgroChain: Order is not awaiting payment");
+        require(payee == order.seller, "AgroChain: Payment payee must be the order seller");
+        require(amount == order.totalPrice, "AgroChain: Payment amount must match order total");
         require(payee != address(0), "AgroChain: Invalid payee address");
         require(amount > 0, "AgroChain: Payment amount must be positive");
+        require(bytes(settlementUnit).length > 0, "AgroChain: Settlement unit is required");
 
         payments[paymentId] = PaymentRecord({
             paymentId: paymentId,
@@ -972,7 +1060,7 @@ contract AgroChain {
             payer: msg.sender,
             payee: payee,
             amount: amount,
-            settlementUnit: bytes(settlementUnit).length > 0 ? settlementUnit : "SIM-NGN",
+            settlementUnit: settlementUnit,
             status: PaymentStatus.SETTLED, // Local demonstration mode settlements are instant
             isSimulated: true,
             timestamp: block.timestamp,
@@ -980,7 +1068,7 @@ contract AgroChain {
         });
 
         allPaymentIds.push(paymentId);
-        orders[orderId].status = OrderStatus.PAID;
+        order.status = OrderStatus.PAID;
 
         emit PaymentRecorded(paymentId, orderId, msg.sender, payee, amount);
         emit PaymentSettled(paymentId, orderId);
@@ -1029,6 +1117,7 @@ contract AgroChain {
         );
         require(policy.policyStatus == InsurancePolicyStatus.ACTIVE, "AgroChain: Policy is not active");
         require(policy.claimStatus == ClaimStatus.NONE, "AgroChain: Claim already filed");
+        require(bytes(reason).length > 0, "AgroChain: Claim reason is required");
 
         policy.claimStatus = ClaimStatus.FILED;
         emit InsuranceClaimFiled(policyId, policy.batchId, reason);

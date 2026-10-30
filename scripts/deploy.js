@@ -86,6 +86,42 @@ await contract.waitForDeployment();
 const address = await contract.getAddress();
 console.log(`${contractName} deployed to:`, address);
 
+
+const roleDefinitions = [
+  ["FARMER", 2n],
+  ["INPUT_SUPPLIER", 3n],
+  ["EXTENSION_OFFICER", 4n],
+  ["STORAGE_OPERATOR", 5n],
+  ["PROCESSOR", 6n],
+  ["TRANSPORTER", 7n],
+  ["DISTRIBUTOR", 8n],
+  ["FINANCIAL_INSTITUTION", 9n],
+  ["REGULATOR", 10n],
+];
+
+const exposedAccounts = await provider.send("eth_accounts", []);
+const adminAddress = (await wallet.getAddress()).toLowerCase();
+const availableStakeholders = exposedAccounts.filter((account) => account.toLowerCase() !== adminAddress);
+if (availableStakeholders.length < roleDefinitions.length) {
+  throw new Error(`Ganache needs at least ${roleDefinitions.length + 1} accounts to provision one wallet per operational role.`);
+}
+
+const roleAddresses = { ADMINISTRATOR: await wallet.getAddress() };
+for (let index = 0; index < roleDefinitions.length; index += 1) {
+  const [roleName, roleId] = roleDefinitions[index];
+  const stakeholderAddress = availableStakeholders[index];
+  const transaction = await contract.registerStakeholder(
+    stakeholderAddress,
+    `AgroChain ${roleName.replaceAll("_", " ")} Demonstrator`,
+    roleId,
+    1n,
+  );
+  await transaction.wait();
+  roleAddresses[roleName] = stakeholderAddress;
+  console.log(`Assigned ${roleName.padEnd(22)} to ${stakeholderAddress}`);
+}
+roleAddresses.CONSUMER = "PUBLIC_NO_WALLET_REQUIRED";
+
 // ✅ Write address + ABI into UI folder
 const outDir = path.join(__dirname, "..", UI_OUT_DIR);
 await mkdir(outDir, { recursive: true });
@@ -105,3 +141,16 @@ await writeFile(
 console.log(`Wrote UI files:
 - ${UI_OUT_DIR}/contract-address.json
 - ${UI_OUT_DIR}/abi.json`);
+
+const processedDir = path.join(__dirname, "..", "data", "processed");
+await mkdir(processedDir, { recursive: true });
+await writeFile(
+  path.join(processedDir, "ganache-role-addresses.json"),
+  JSON.stringify({
+    network: { name: "Ganache Local", rpcUrl, chainId },
+    contractAddress: address,
+    roles: roleAddresses,
+  }, null, 2),
+  "utf8",
+);
+console.log("- data/processed/ganache-role-addresses.json");

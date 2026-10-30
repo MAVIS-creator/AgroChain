@@ -236,20 +236,58 @@ for (const batch of testBatches) {
   console.log(`  -> transferred to PROCESSOR`);
 }
 
-const processedTx = await processorContract.advanceStage(1001n, 5n);
-await processedTx.wait();
+async function prepareThroughProcessing(batch) {
+  const inputId = "SETUP-INPUT-" + batch.id;
+  await (await contract.registerAgroInput(
+    inputId,
+    "AgroChain Demo Input Supplier",
+    batch.crop === 0n ? "Cassava Cutting" : "Hybrid Maize Seed",
+    batch.crop,
+    "SETUP-CERT-" + batch.id,
+  )).wait();
+  await (await contract.verifyAgroInput(inputId)).wait();
+  await (await contract.linkInputToBatch(batch.id, inputId)).wait();
+  await (await contract.advanceStage(batch.id, 2n)).wait();
+  await (await contract.advanceStage(batch.id, 3n)).wait();
+  await (await contract.recordStorageReading(
+    batch.id,
+    batch.origin + " Demo Store",
+    25n,
+    60n,
+    "SIM-SETUP-" + batch.id,
+    true,
+  )).wait();
+  await (await contract.recordProcessing(
+    batch.id,
+    batch.crop === 0n ? "HQCF" : "Maize Flour",
+    batch.qty / 2n,
+    batch.unit,
+    "Ganache setup demonstration",
+  )).wait();
+}
+
+await prepareThroughProcessing(testBatches[0]);
 console.log("Batch #1001 updated to PROCESSED");
 
-const toTransporterTx2 = await processorContract.transferCustody(1002n, stakeholders.TRANSPORTER);
-await toTransporterTx2.wait();
-const transitTx2 = await transporterContract.advanceStage(1002n, 6n);
-await transitTx2.wait();
+await prepareThroughProcessing(testBatches[1]);
+await (await contract.createShipment(
+  9002n,
+  1002n,
+  stakeholders.TRANSPORTER,
+  testBatches[1].origin,
+  "Lagos Distribution Hub",
+)).wait();
 console.log("Batch #1002 updated to IN_TRANSIT");
 
-const toDistributorTx3 = await processorContract.transferCustody(1003n, stakeholders.DISTRIBUTOR);
-await toDistributorTx3.wait();
-const deliveredTx3 = await distributorContract.advanceStage(1003n, 7n);
-await deliveredTx3.wait();
+await prepareThroughProcessing(testBatches[2]);
+await (await contract.createShipment(
+  9003n,
+  1003n,
+  stakeholders.TRANSPORTER,
+  testBatches[2].origin,
+  "Lagos Distribution Hub",
+)).wait();
+await (await contract.confirmShipmentDelivery(9003n, stakeholders.DISTRIBUTOR)).wait();
 console.log("Batch #1003 updated to DELIVERED");
 
 log("Lifecycle operations completed");

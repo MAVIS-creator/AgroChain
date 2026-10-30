@@ -130,8 +130,18 @@ In accordance with academic and product evaluation standards, all local simulate
 ## Prerequisites
 
 - **Node.js**: `v18.0.0` or later
-- **Ganache**: Running locally on `http://127.0.0.1:7545` with Chain ID `1337`
+- **Ganache**: Running locally on `http://127.0.0.1:7545` with Chain ID `1337` and unlimited contract size enabled for this demo contract
 - **MetaMask**: Installed in browser with Ganache custom network added
+
+The current AgroChain contract runtime is larger than the standard EVM deployment limit. Hardhat's local test network enables unlimited contract size for integration tests. For the Ganache demo, enable **Allow Unlimited Contract Size** in the workspace settings, or start Ganache CLI with `--chain.allowUnlimitedContractSize true`. This is a local demonstration workaround; the contract must be modularized before deployment to a standard production EVM.
+
+## Local keys and configuration
+
+- `GANACHE_PRIVATE_KEY` in the ignored root `.env.local` is required only to deploy to Ganache. The API reads it server-side to identify the local deployer for signed security incident actions. Never put it in a `VITE_` variable or commit it.
+- `VITE_THIRDWEB_CLIENT_ID` in `ui/.env` is a public application client ID, not a wallet key. Supply one for reliable thirdweb wallet connectivity. No bank, insurer, AI, or IoT vendor credentials are currently used.
+- `SECURITY_ADMIN_ADDRESSES` is optional and can contain additional local API administrator wallet addresses; by default, the deployer address is derived from `GANACHE_PRIVATE_KEY`.
+
+Use the safe templates in `.env.example` and `ui/.env.example`; replace placeholders locally and keep real credentials out of source control.
 
 ---
 
@@ -200,7 +210,7 @@ AgroChain includes full-suite automated tests across contract logic, local API t
 # Run Hardhat smart contract tests (11 roles, dual crops, security checks)
 npm test
 
-# Run Local API and telemetry tests
+# Run Local API and telemetry tests (uses an ephemeral local test wallet)
 npm run test:api
 
 # Run End-to-end setup and Ganache smoke test
@@ -210,6 +220,8 @@ npm run setup:test
 cd ui
 npx playwright test
 ```
+
+`npm test` compiles and runs the executable Hardhat 3 integration suite on an isolated local chain. It covers both crop journeys, role enforcement, marketplace/payment rules, cancellation, and insurance. `npm run test:api` covers persistence and signed incident workflows. Neither test command needs a public RPC or paid API key.
 
 ---
 

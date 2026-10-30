@@ -9,12 +9,18 @@ const repoRoot = path.resolve(__dirname, "..");
 
 const agrochainDatasetPath = path.join(repoRoot, "data", "processed", "agrochain-dataset.json");
 const cassavaDatasetPath = path.join(repoRoot, "data", "processed", "cassava-dataset.json");
-const storageTelemetryPath = path.join(repoRoot, "data", "processed", "iot-telemetry.json");
-const securityLogsPath = path.join(repoRoot, "data", "processed", "security-telemetry.json");
-
 const host = process.env.DATASET_API_HOST || "127.0.0.1";
 let port = Number(process.env.DATASET_API_PORT || 3030);
 const uiEnvPath = path.join(repoRoot, "ui", ".env");
+const localDataDir = process.env.DATASET_STORAGE_DIR || path.join(repoRoot, "data", "processed");
+const iotPersistencePath = path.join(localDataDir, "iot-telemetry.json");
+const securityPersistencePath = path.join(localDataDir, "security-telemetry.json");
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+]);
 
 // ----------------------------------------------------------------------------
 // In-Memory Telemetry & Persistence Cache
@@ -156,7 +162,7 @@ async function loadDataset() {
   return cachedDataset;
 }
 
-// Initialize seed security telemetry and IoT readings
+// Seed clearly marked demonstration sensor readings; security history starts empty.
 function initTelemetry() {
   if (iotReadings.length === 0) {
     iotReadings = [
@@ -189,63 +195,61 @@ function initTelemetry() {
     ];
   }
 
-  if (securityEvents.length === 0) {
-    securityEvents = [
-      {
-        id: "SEC-LOG-001",
-        eventType: "AUTHENTICATION",
-        severity: "INFO",
-        actor: "0x1a89...4b92",
-        summary: "Authorized administrator session initialized.",
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-      },
-      {
-        id: "SEC-LOG-002",
-        eventType: "UNAUTHORIZED_ATTEMPT",
-        severity: "HIGH",
-        actor: "0x98f2...11c4",
-        summary: "Non-owner attempted unauthorized status transition on batch #20261001.",
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-      },
-    ];
+}
 
-    securityIncidents = [
-      {
-        id: "INC-101",
-        title: "Unauthorized Stage Transition Attempt",
-        severity: "HIGH",
-        status: "OPEN", // OPEN, INVESTIGATING, RESOLVED
-        reportedBy: "Authorization Guard",
-        actor: "0x98f2...11c4",
-        evidence: "Transaction call revert: AgroChain: Only current batch custodian permitted",
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        history: [
-          { status: "OPEN", note: "Automated anomaly flagged by state-machine filter.", timestamp: new Date(Date.now() - 3600000).toISOString() },
-        ],
-      },
-    ];
+async function loadPersistedTelemetry() {
+  try {
+    const saved = JSON.parse(await readFile(iotPersistencePath, "utf8"));
+    if (Array.isArray(saved)) iotReadings = saved;
+  } catch {
+    // First run or a missing local telemetry file.
   }
+  try {
+    const saved = JSON.parse(await readFile(securityPersistencePath, "utf8"));
+    if (Array.isArray(saved.events)) securityEvents = saved.events;
+    if (Array.isArray(saved.incidents)) securityIncidents = saved.incidents;
+    if (Number.isInteger(saved.incidentCounter)) incidentCounter = Math.max(incidentCounter, saved.incidentCounter);
+  } catch {
+    // First run or a missing local telemetry file.
+  }
+}
+
+async function persistIoTReadings() {
+  await mkdir(localDataDir, { recursive: true });
+  await writeFile(iotPersistencePath, JSON.stringify(iotReadings, null, 2), "utf8");
+}
+
+async function persistSecurityTelemetry() {
+  await mkdir(localDataDir, { recursive: true });
+  await writeFile(
+    securityPersistencePath,
+    JSON.stringify({ events: securityEvents, incidents: securityIncidents, incidentCounter }, null, 2),
+    "utf8",
+  );
 }
 
 // ----------------------------------------------------------------------------
 // Response Helpers
 // ----------------------------------------------------------------------------
 function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, {
+  const origin = response.req?.headers?.origin;
+  const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-  });
+    "Access-Control-Allow-Headers": "Content-Type,Authorization,X-AgroChain-Actor,X-AgroChain-Signature,X-AgroChain-Timestamp",
+    Vary: "Origin",
+  };
+  if (origin && allowedOrigins.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  response.writeHead(statusCode, headers);
   response.end(JSON.stringify(payload));
 }
 
 function sendNoContent(response) {
   response.writeHead(204, {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization,X-AgroChain-Actor,X-AgroChain-Signature,X-AgroChain-Timestamp",
+    Vary: "Origin",
   });
   response.end();
 }
@@ -344,8 +348,62 @@ function calculateBatchRisk(batchId, cropType = "Cassava", storageHistory = [], 
 // ----------------------------------------------------------------------------
 initTelemetry();
 
+function readLocalEnv(name) {
+  if (process.env[name]) return process.env[name];
+  return readFile(path.join(repoRoot, ".env.local"), "utf8")
+    .then((content) => {
+      const match = content.match(new RegExp(`^\\s*${name}\\s*=\\s*(.*)\\s*$`, "m"));
+      return match?.[1]?.trim().replace(/^(["'])(.*)\\1$/, "$2") || "";
+    })
+    .catch(() => "");
+}
+
+const adminPrivateKey = await readLocalEnv("GANACHE_PRIVATE_KEY");
+const securityAdminAddresses = new Set(
+  (await readLocalEnv("SECURITY_ADMIN_ADDRESSES"))
+    .split(",")
+    .map((address) => address.trim().toLowerCase())
+    .filter(Boolean),
+);
+if (adminPrivateKey) {
+  try {
+    const { Wallet } = await import("ethers");
+    securityAdminAddresses.add(new Wallet(adminPrivateKey).address.toLowerCase());
+  } catch {
+    console.warn("[agrochain-api] GANACHE_PRIVATE_KEY is not a valid wallet key; signed incident actions require SECURITY_ADMIN_ADDRESSES.");
+  }
+}
+
+async function verifySignedAdminRequest(request, pathname, body, requireAdmin = true) {
+  const actor = String(body.actor || request.headers["x-agrochain-actor"] || "").toLowerCase();
+  const signature = String(body.signature || request.headers["x-agrochain-signature"] || "");
+  const timestamp = Number(body.timestamp || request.headers["x-agrochain-timestamp"]);
+  if (!actor || !signature || !Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > 5 * 60_000) {
+    return false;
+  }
+  if (requireAdmin && !securityAdminAddresses.has(actor)) return false;
+  const message = ["AgroChain local admin request", request.method, pathname, String(timestamp), JSON.stringify(body.payload || {})].join("|");
+  try {
+    const { verifyMessage } = await import("ethers");
+    const signer = verifyMessage(message, signature).toLowerCase();
+    if (signer !== actor) return false;
+    if (usedAdminSignatures.has(signature)) return false;
+    usedAdminSignatures.add(signature);
+    return true;
+  } catch {
+    return false;
+  }
+}
+const usedAdminSignatures = new Set();
+
 const server = createServer(async (request, response) => {
   const clientIp = request.socket.remoteAddress || "127.0.0.1";
+  const origin = request.headers.origin;
+
+  if (origin && !allowedOrigins.has(origin)) {
+    sendJson(response, 403, { error: "Origin is not allowed." });
+    return;
+  }
 
   if (!checkRateLimit(clientIp)) {
     sendJson(response, 429, { error: "Rate limit exceeded. Try again in one minute." });
@@ -358,6 +416,7 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "OPTIONS") {
+    if (origin) response.setHeader("Access-Control-Allow-Origin", origin);
     sendNoContent(response);
     return;
   }
@@ -465,6 +524,10 @@ const server = createServer(async (request, response) => {
 
       const tempNum = Number(body.temperature);
       const humNum = Number(body.humidity);
+      if (!Number.isFinite(tempNum) || tempNum < -80 || tempNum > 100 || !Number.isFinite(humNum) || humNum < 0 || humNum > 100) {
+        sendJson(response, 400, { error: "Temperature must be between -80 and 100 and humidity between 0 and 100." });
+        return;
+      }
 
       const reading = {
         id: `IOT-${Date.now()}`,
@@ -481,6 +544,7 @@ const server = createServer(async (request, response) => {
       };
 
       iotReadings.push(reading);
+      await persistIoTReadings();
       sendJson(response, 201, { success: true, reading });
       return;
     }
@@ -489,6 +553,10 @@ const server = createServer(async (request, response) => {
       const body = await parseJsonBody(request);
       const batchId = String(body.batchId || "20261001");
       const cropType = String(body.cropType || "Cassava");
+      if (!/^\d{1,40}$/.test(batchId) || !["cassava", "maize"].includes(cropType.toLowerCase())) {
+        sendJson(response, 400, { error: "A numeric batch ID and cropType Cassava or Maize are required." });
+        return;
+      }
 
       // Generate realistic fluctuating simulated reading
       const simTemp = Number((22 + Math.random() * 9).toFixed(1));
@@ -509,6 +577,7 @@ const server = createServer(async (request, response) => {
       };
 
       iotReadings.push(reading);
+      await persistIoTReadings();
       sendJson(response, 201, {
         success: true,
         notice: "This reading is demonstrator simulated telemetry.",
@@ -534,6 +603,10 @@ const server = createServer(async (request, response) => {
     // Cybersecurity Telemetry & Incident Operations
     // ------------------------------------------------------------------------
     if (request.method === "GET" && url.pathname === "/api/security/events") {
+      if (!(await verifySignedAdminRequest(request, `${url.pathname}${url.search}`, {}))) {
+        sendJson(response, 401, { error: "A recent administrator signature is required to view security telemetry." });
+        return;
+      }
       sendJson(response, 200, {
         count: securityEvents.length,
         events: securityEvents.slice(-50).reverse(),
@@ -543,17 +616,30 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && url.pathname === "/api/security/events") {
       const body = await parseJsonBody(request);
-      if (!body.eventType || !body.summary) {
+      const payload = body.payload || {};
+      if (!payload.eventType || !payload.summary) {
         sendJson(response, 400, { error: "eventType and summary are required." });
+        return;
+      }
+
+      payload.eventType = String(payload.eventType).trim();
+      payload.severity = String(payload.severity || "INFO").toUpperCase();
+      payload.summary = String(payload.summary).trim();
+      if (!["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(payload.severity) || payload.summary.length > 1000) {
+        sendJson(response, 400, { error: "Severity is invalid or event summary exceeds 1000 characters." });
+        return;
+      }
+      if (!(await verifySignedAdminRequest(request, url.pathname, body, false))) {
+        sendJson(response, 401, { error: "A recent signature from the configured AgroChain administrator is required." });
         return;
       }
 
       const event = {
         id: `SEC-LOG-${Date.now()}`,
-        eventType: String(body.eventType).trim(),
-        severity: String(body.severity || "INFO").toUpperCase(),
-        actor: String(body.actor || "ANONYMOUS"),
-        summary: String(body.summary).trim(),
+        eventType: payload.eventType,
+        severity: payload.severity,
+        actor: String(body.actor || request.headers["x-agrochain-actor"]),
+        summary: payload.summary,
         timestamp: new Date().toISOString(),
       };
 
@@ -577,11 +663,17 @@ const server = createServer(async (request, response) => {
         });
       }
 
+      await persistSecurityTelemetry();
+
       sendJson(response, 201, { success: true, event });
       return;
     }
 
     if (request.method === "GET" && url.pathname === "/api/security/incidents") {
+      if (!(await verifySignedAdminRequest(request, `${url.pathname}${url.search}`, {}))) {
+        sendJson(response, 401, { error: "A recent administrator signature is required to view security incidents." });
+        return;
+      }
       sendJson(response, 200, {
         count: securityIncidents.length,
         incidents: securityIncidents.slice().reverse(),
@@ -594,11 +686,32 @@ const server = createServer(async (request, response) => {
       const body = await parseJsonBody(request);
       const action = String(body.action || "").toLowerCase(); // acknowledge, investigate, resolve
       const note = String(body.note || "No audit note provided").trim();
-      const actor = String(body.actor || "Security Administrator");
+      if (!["acknowledge", "investigate", "resolve"].includes(action) || note.length > 1000) {
+        sendJson(response, 400, { error: "Action must be acknowledge, investigate, or resolve; note must be at most 1000 characters." });
+        return;
+      }
+      if (!(await verifySignedAdminRequest(request, url.pathname, body))) {
+        sendJson(response, 401, { error: "A recent signature from the configured AgroChain administrator is required." });
+        return;
+      }
+      const actor = String(body.actor || request.headers["x-agrochain-actor"]);
+      if (JSON.stringify(body.payload) !== JSON.stringify({ action, note })) {
+        sendJson(response, 401, { error: "The signed incident action does not match the requested change." });
+        return;
+      }
 
       const incident = securityIncidents.find((inc) => inc.id === incidentId);
       if (!incident) {
         sendJson(response, 404, { error: `Incident ${incidentId} not found.` });
+        return;
+      }
+
+      if ((action === "acknowledge" || action === "investigate") && incident.status !== "OPEN") {
+        sendJson(response, 409, { error: "Only open incidents can be acknowledged or investigated." });
+        return;
+      }
+      if (action === "resolve" && incident.status !== "INVESTIGATING") {
+        sendJson(response, 409, { error: "An incident must be under investigation before it can be resolved." });
         return;
       }
 
@@ -617,6 +730,8 @@ const server = createServer(async (request, response) => {
         note,
         timestamp: new Date().toISOString(),
       });
+
+      await persistSecurityTelemetry();
 
       sendJson(response, 200, { success: true, incident });
       return;
@@ -667,6 +782,9 @@ server.on("error", async (error) => {
   console.log(`[agrochain-api] using fallback port ${port}. Updated ui/.env VITE_DATASET_API_URL.`);
   server.listen(port, host);
 });
+
+await loadPersistedTelemetry();
+if (iotReadings.length === 0 || securityEvents.length === 0) initTelemetry();
 
 server.listen(port, host, () => {
   updateUiEnvApiUrl(port);

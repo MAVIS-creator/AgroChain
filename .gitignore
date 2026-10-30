@@ -23,6 +23,8 @@
 /ui/dist
 /ui/.env
 /ui/.env.local
+/data/processed/iot-telemetry.json
+/data/processed/security-telemetry.json
 
 # Local browser-test artifacts
 /.playwright-mcp/
@@ -32,3 +34,11 @@
 # Local secrets
 /.env
 /.env.local
+
+/.local-tools/
+/.ganache/
+/.runtime/
+/output/playwright/
+/debug.log
+/ui/debug.log
+/AgroChain_Logo_Files/

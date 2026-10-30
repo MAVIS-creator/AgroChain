@@ -4,8 +4,8 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "test": "hardhat test",
-    "test:contracts": "hardhat test",
+    "test": "npm run compile && node test/contracts.integration.mjs",
+    "test:contracts": "npm run compile && node test/contracts.integration.mjs",
     "test:api": "node test/api.test.mjs",
     "compile": "hardhat compile",
     "deploy": "node scripts/deploy.js",
