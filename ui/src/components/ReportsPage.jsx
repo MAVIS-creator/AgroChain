@@ -163,12 +163,12 @@ export default function ReportsPage({
               <p className="font-h2 text-h3 text-on-surface mt-2">{datasetSummary.totalRecords}</p>
             </div>
             <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0_4_20px_rgba(13,40,29,0.05)] border border-outline-variant/30">
-              <p className="font-label-caps text-label-caps text-on-surface-variant">Average Loss</p>
-              <p className="font-h2 text-h3 text-on-surface mt-2">{datasetSummary.avgLossPct}%</p>
+              <p className="font-label-caps text-label-caps text-on-surface-variant">Modeled Loss Estimate</p>
+              <p className="font-h2 text-h3 text-on-surface mt-2">{datasetSummary.avgLossPct == null ? "N/A" : `${datasetSummary.avgLossPct}%`}</p>
             </div>
             <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0_4_20px_rgba(13,40,29,0.05)] border border-outline-variant/30">
-              <p className="font-label-caps text-label-caps text-on-surface-variant">Avg Transport Time</p>
-              <p className="font-h2 text-h3 text-on-surface mt-2">{datasetSummary.avgTransportHours} hrs</p>
+              <p className="font-label-caps text-label-caps text-on-surface-variant">Modeled Transport Time</p>
+              <p className="font-h2 text-h3 text-on-surface mt-2">{datasetSummary.avgTransportHours == null ? "N/A" : `${datasetSummary.avgTransportHours} hrs`}</p>
             </div>
           </>
         ) : (
