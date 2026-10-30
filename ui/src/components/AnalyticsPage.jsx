@@ -200,7 +200,7 @@ export default function AnalyticsPage({
                   className={`h-full transition-all duration-500 ${
                     (riskData?.riskScore ?? 0) > 65
                       ? "bg-red-500"
-                      : (riskData?.riskScore ?? 18) > 35
+                      : (riskData?.riskScore ?? 0) > 35
                         ? "bg-amber-500"
                         : "bg-emerald-500"
                   }`}
