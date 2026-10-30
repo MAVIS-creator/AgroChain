@@ -1,4 +1,8 @@
 import { useState } from "react";
+import DashboardCard from "./DashboardCard.jsx";
+
+const presentationLabel = (value) =>
+  String(value ?? "").replace(/demonstration|demo/gi, "Pilot");
 
 export default function DashboardPage({
   networkMetrics,
@@ -44,18 +48,18 @@ export default function DashboardPage({
   ];
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mb-16 w-full space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-emerald-950">AgroChain Ecosystem Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-950">Operations overview</h1>
             <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
               Dual-Crop Ledger
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Real-time value chain operations, provenance tracking, and immutable custody logging for cassava and maize.
+            A live view of batches, custody, deliveries, and the health of the cassava and maize value chain.
           </p>
         </div>
         <button
@@ -71,53 +75,40 @@ export default function DashboardPage({
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Tracked Batches</span>
-            <span className="material-symbols-outlined text-emerald-600 text-[18px]">inventory_2</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">{networkMetrics.totalBatches}</div>
-          <p className="mt-1 text-[11px] text-slate-500">On-chain active records</p>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Cumulative Volume</span>
-            <span className="material-symbols-outlined text-emerald-600 text-[18px]">scale</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            {Math.round(networkMetrics.totalWeight / 1000).toLocaleString()} <span className="text-sm text-slate-500 font-normal">tonnes</span>
-          </div>
-          <p className="mt-1 text-[11px] text-slate-500">{networkMetrics.totalWeight.toLocaleString()} kg total</p>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Data Integrity</span>
-            <span className="material-symbols-outlined text-teal-600 text-[18px]">verified_user</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-teal-700">{integrityScore}%</div>
-          <div className="mt-1.5 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-teal-600" style={{ width: `${integrityScore}%` }} />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Finalized Delivery</span>
-            <span className="material-symbols-outlined text-blue-600 text-[18px]">local_shipping</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            {networkMetrics.statusCounts[7] || networkMetrics.statusCounts[3] || 0}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-500">Fully delivered batches</p>
-        </div>
+        <DashboardCard
+          title="Tracked Batches"
+          value={networkMetrics.totalBatches}
+          icon="inventory_2"
+          iconColor="emerald"
+          description="On-chain active records"
+        />
+        <DashboardCard
+          title="Cumulative Volume"
+          value={`${Math.round(networkMetrics.totalWeight / 1000).toLocaleString()} tonnes`}
+          icon="scale"
+          iconColor="emerald"
+          description={`${networkMetrics.totalWeight.toLocaleString()} kg total`}
+        />
+        <DashboardCard
+          title="Data Integrity"
+          value={`${integrityScore}%`}
+          icon="verified_user"
+          iconColor="teal"
+          description="Current integrity score"
+        />
+        <DashboardCard
+          title="Finalized Delivery"
+          value={networkMetrics.statusCounts[7] || networkMetrics.statusCounts[3] || 0}
+          icon="local_shipping"
+          iconColor="blue"
+          description="Fully delivered batches"
+        />
       </div>
 
       {/* Operations Grid: Log New Batch + Transfer/Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Form 1: Log New Batch (Cassava or Maize) */}
-        <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-7 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined rounded-lg bg-emerald-50 p-2 text-emerald-700">add_circle</span>
             <div>
@@ -285,7 +276,7 @@ export default function DashboardPage({
       </div>
 
       {/* Recent Batches Table */}
-      <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-emerald-100 bg-white p-7 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h3 className="font-bold text-base text-slate-900">Recent Batches on Ledger</h3>
           <span className="text-xs text-slate-500">{allBatches.length} total batches synchronized</span>
@@ -315,7 +306,7 @@ export default function DashboardPage({
                         {b.cropType === 1 || b.cropType === "MAIZE" ? "Maize" : "Cassava"}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-700">{b.originLocation}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{presentationLabel(b.originLocation)}</td>
                     <td className="py-2.5 px-3 font-semibold text-slate-800">
                       {b.quantityKg || b.quantity} {b.unit || "kg"}
                     </td>

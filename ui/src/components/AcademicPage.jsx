@@ -21,7 +21,7 @@ export default function AcademicPage({
           <p className="text-label-caps font-label-caps text-on-surface-variant">Obj (i) &amp; (ii)</p>
           <h3 className="mt-3 font-h3 text-h3 text-primary">Blockchain &amp; Smart Contracts</h3>
           <p className="mt-3 text-body-sm text-on-surface-variant">
-            Solidity smart contracts are deployed and simulated on {ganacheChain.name}.
+            Solidity smart contracts are deployed on the local {ganacheChain.name} network.
           </p>
           <span className="mt-4 inline-flex rounded-full bg-secondary-container px-3 py-1 text-status-tag font-status-tag text-on-secondary-container">
             Verified On-Chain
@@ -43,7 +43,7 @@ export default function AcademicPage({
           <p className="text-label-caps font-label-caps text-on-surface-variant">Obj (iv)</p>
           <h3 className="mt-3 font-h3 text-h3 text-primary">Dataset Processing</h3>
           <p className="mt-3 text-body-sm text-on-surface-variant">
-            Empirical and simulated cassava and maize production datasets have been preprocessed and exposed through the AgroChain dataset API for evaluation workflows.
+            Cassava and maize evaluation datasets have been preprocessed and exposed through the AgroChain dataset API.
           </p>
           <div className="mt-4 text-body-sm text-secondary">
             Total records: <strong>{datasetSummary?.totalRecords || 0}</strong>

@@ -17,6 +17,7 @@ export default function AdminPage({
 }) {
   const [stakeholderName, setStakeholderName] = useState("");
   const [stakeholderStatus, setStakeholderStatus] = useState(1); // 1 = ACTIVE, 2 = SUSPENDED
+  const isDeployerAdmin = Boolean(activeAccount?.address && contractAdmin && activeAccount.address.toLowerCase() === contractAdmin.toLowerCase());
 
   const roleOptions = [
     { value: 1, label: "ADMINISTRATOR (Full Platform Admin)" },
@@ -42,7 +43,7 @@ export default function AdminPage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
@@ -58,7 +59,7 @@ export default function AdminPage({
         </div>
         {activeAccount?.address && (
           <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900 shadow-sm">
-            <span className="text-blue-700">Connected Admin: </span>
+            <span className="text-blue-700">Connected Wallet: </span>
             <span className="font-mono font-bold">{formatAddress(activeAccount.address)}</span>
           </div>
         )}
@@ -75,7 +76,9 @@ export default function AdminPage({
             </div>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-3.5 pt-1">
+          {!isDeployerAdmin ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Only the deployed administrator wallet can assign or change stakeholder roles. Connect that wallet to manage identities.</p>
+          ) : <form onSubmit={onSubmit} className="space-y-3.5 pt-1">
             <div>
               <label className="text-xs font-semibold text-slate-700">User Wallet Address</label>
               <input
@@ -128,12 +131,12 @@ export default function AdminPage({
 
             <button
               type="submit"
-              disabled={isWorking || IS_PLACEHOLDER}
+              disabled={isWorking || IS_PLACEHOLDER || !isDeployerAdmin}
               className="mt-2 w-full rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white hover:bg-emerald-800 active:scale-98 transition-all disabled:opacity-50 shadow-sm"
             >
-              Commit On-Chain Role Assignment
+              {isDeployerAdmin ? "Commit On-Chain Role Assignment" : "Administrator wallet required"}
             </button>
-          </form>
+          </form>}
         </div>
 
         {/* Network & Identity Controls */}

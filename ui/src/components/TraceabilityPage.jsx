@@ -22,7 +22,7 @@ export default function TraceabilityPage({
   ];
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Search Section */}
       <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
         <form onSubmit={handleSearchBatch} className="flex flex-col sm:flex-row gap-3">

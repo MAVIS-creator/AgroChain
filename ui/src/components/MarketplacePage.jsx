@@ -119,7 +119,7 @@ export default function MarketplacePage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
@@ -130,7 +130,7 @@ export default function MarketplacePage({
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Facilitate direct B2B trading between producers and processors with auditable simulated settlement and risk insurance.
+            Facilitate direct B2B trading between producers and processors with auditable settlement and insurance records.
           </p>
         </div>
         <div className="rounded-xl border border-emerald-100 bg-white px-4 py-2 text-xs shadow-sm">
@@ -157,7 +157,7 @@ export default function MarketplacePage({
             activeTab === "payments" ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-100"
           }`}
         >
-          Simulated Payments ({ordersList.length} Orders)
+          Payments ({ordersList.length} Orders)
         </button>
         <button
           type="button"
@@ -166,7 +166,7 @@ export default function MarketplacePage({
             activeTab === "insurance" ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-100"
           }`}
         >
-          Simulated Agricultural Insurance
+          Agricultural Insurance
         </button>
       </div>
 
@@ -403,9 +403,9 @@ export default function MarketplacePage({
           <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 flex items-start gap-3 text-blue-900">
             <span className="material-symbols-outlined text-blue-700 shrink-0 mt-0.5">paid</span>
             <div className="text-xs space-y-0.5">
-              <span className="font-bold uppercase tracking-wider">Simulated Settlement Notice: </span>
+              <span className="font-bold uppercase tracking-wider">Local settlement mode: </span>
               <span>
-                Demonstrator digital settlement occurs in SIM-NGN test units. No actual fiat or cryptocurrency funds are debited. All transactions record cryptographic proof of procurement settlement.
+                Settlement uses SIM-NGN test units. No fiat or cryptocurrency funds are debited; the blockchain records procurement settlement evidence only.
               </span>
             </div>
           </div>
@@ -476,7 +476,7 @@ export default function MarketplacePage({
                   disabled={isWorking || IS_PLACEHOLDER}
                   className="mt-2 w-full rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-all disabled:opacity-50"
                 >
-                  Record & Settle Payment (Simulated)
+                  Record Settlement
                 </button>
               </form>
             </div>
@@ -494,9 +494,9 @@ export default function MarketplacePage({
                         <div className="text-emerald-800 font-semibold mt-0.5">Qty: {order.quantity} | Total: ₦{order.totalPrice}</div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        order.status === 2 || order.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        order.status === 1 || order.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
                       }`}>
-                        {order.status === 2 || order.status === "PAID" ? "PAID" : "PLACED"}
+                        {order.status === 1 || order.status === "PAID" ? "PAID" : "PLACED"}
                       </span>
                     </div>
                   ))
@@ -515,9 +515,9 @@ export default function MarketplacePage({
           <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 flex items-start gap-3 text-amber-900">
             <span className="material-symbols-outlined text-amber-600 shrink-0 mt-0.5">security</span>
             <div className="text-xs space-y-0.5">
-              <span className="font-bold uppercase tracking-wider">Simulated Insurance Record: </span>
+              <span className="font-bold uppercase tracking-wider">Local insurance record: </span>
               <span>
-                Demonstrator crop insurance coverage policies and indemnity claims are managed locally on-chain. No third-party underwriting integration is claimed.
+                Coverage policies and indemnity claims are recorded locally on-chain. No third-party insurer or underwriting service is connected.
               </span>
             </div>
           </div>

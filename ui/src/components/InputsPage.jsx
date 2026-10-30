@@ -1,5 +1,8 @@
 import { useState } from "react";
 
+const presentationLabel = (value) =>
+  String(value ?? "").replace(/demo/gi, "Pilot");
+
 export default function InputsPage({
   isWorking,
   IS_PLACEHOLDER,
@@ -20,9 +23,9 @@ export default function InputsPage({
   const [verifyId, setVerifyId] = useState("");
   const [linkBatchId, setLinkBatchId] = useState("");
   const [linkInputId, setLinkInputId] = useState("");
-
   const canRegister = activeRoleLabel === "INPUT_SUPPLIER" || activeRoleLabel === "ADMINISTRATOR";
   const canVerify = activeRoleLabel === "REGULATOR" || activeRoleLabel === "EXTENSION_OFFICER" || activeRoleLabel === "ADMINISTRATOR";
+  const canLink = activeRoleLabel === "FARMER" || activeRoleLabel === "ADMINISTRATOR";
 
   const handleRegister = (e) => {
     e.preventDefault();
@@ -55,7 +58,7 @@ export default function InputsPage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
@@ -75,9 +78,9 @@ export default function InputsPage({
         </div>
       </div>
 
-      {/* Action Grid: Register, Verify, Link */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Card 1: Register Input */}
+        {canRegister && (
         <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined rounded-lg bg-emerald-50 p-2 text-emerald-700">app_registration</span>
@@ -161,7 +164,9 @@ export default function InputsPage({
           </form>
         </div>
 
+        )}
         {/* Card 2: Regulatory Verification */}
+        {canVerify && (
         <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined rounded-lg bg-blue-50 p-2 text-blue-700">verified_user</span>
@@ -202,7 +207,9 @@ export default function InputsPage({
           </form>
         </div>
 
+        )}
         {/* Card 3: Link Input to Batch */}
+        {canLink && (
         <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined rounded-lg bg-amber-50 p-2 text-amber-700">link</span>
@@ -250,6 +257,7 @@ export default function InputsPage({
             </button>
           </form>
         </div>
+        )}
       </div>
 
       {/* Input Records Table */}
@@ -275,8 +283,8 @@ export default function InputsPage({
               {inputsList.length > 0 ? (
                 inputsList.map((item, idx) => (
                   <tr key={item.inputId || idx} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-medium text-emerald-950">{item.inputId}</td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.supplierName}</td>
+                    <td className="py-2.5 px-3 font-mono font-medium text-emerald-950">{presentationLabel(item.inputId)}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{presentationLabel(item.supplierName)}</td>
                     <td className="py-2.5 px-3 text-slate-600">{item.inputType}</td>
                     <td className="py-2.5 px-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -285,7 +293,7 @@ export default function InputsPage({
                         {item.cropApplicability === 0 ? "Cassava" : "Maize"}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">{item.certReference || "—"}</td>
+                    <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">{presentationLabel(item.certReference) || "—"}</td>
                     <td className="py-2.5 px-3">
                       {item.isVerified ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">

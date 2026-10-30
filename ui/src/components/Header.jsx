@@ -1,9 +1,9 @@
 import { useState } from "react";
+import SideDrawer from "./SideDrawer.jsx";
 
 export default function Header({
   activePage,
   setActivePage,
-  navItems,
   activeAccount,
   formatAddress,
   isConnecting,
@@ -16,155 +16,166 @@ export default function Header({
   chainLabel,
   onOpenNotifications,
   activeRoleLabel,
+  isGanacheReady,
+  isContractReady,
 }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isPublicPage = activePage === "landing" || activePage === "verify";
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md shadow-[0_4px_20px_rgba(13,40,29,0.06)]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 py-3.5">
-        {/* Brand Logo & Name */}
-        <button
-          type="button"
-          onClick={() => setActivePage("dashboard")}
-          className="flex items-center gap-3 text-left focus:outline-none"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-[0_8px_20px_rgba(16,112,65,0.28)]">
-            <span className="material-symbols-outlined text-[22px]">agriculture</span>
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-lg text-emerald-950 tracking-tight">AgroChain</span>
-              <span className="hidden sm:inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                Cassava & Maize
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-700/80 font-medium truncate">Smart Value Chain Ecosystem</p>
-          </div>
-        </button>
-
-        {/* Desktop Navigation (Scrollable or multi-row safe) */}
-        <nav className="hidden lg:flex items-center gap-1.5 overflow-x-auto py-1">
-          {navItems.map((item) => (
+    <>
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
+        <div className={`app-header-inner mx-auto flex h-[76px] items-center justify-between gap-4 ${isPublicPage ? "app-public-header max-w-7xl" : "app-workspace-header lg:ml-72 lg:max-w-none"}`}>
+          <div className="flex min-w-0 items-center gap-3">
+            {!isPublicPage && (
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="rounded-xl p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-800 lg:hidden"
+                aria-label="Open workspace navigation"
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+            )}
             <button
-              key={item.key}
               type="button"
-              onClick={() => setActivePage(item.key)}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                activePage === item.key
-                  ? "bg-emerald-700 text-white shadow-sm"
-                  : "text-emerald-900/80 hover:bg-emerald-50 hover:text-emerald-700"
-              }`}
+              onClick={() => setActivePage(isPublicPage ? "landing" : "dashboard")}
+              className="flex items-center text-left"
+              aria-label="AgroChain home"
             >
-              {item.label}
+              <img
+                src="/brand/agrochain-full-colour.png"
+                alt="AgroChain"
+                className="h-10 w-auto max-w-[132px] object-contain sm:h-11 sm:max-w-[172px]"
+              />
             </button>
-          ))}
-        </nav>
+          </div>
 
-        {/* Action Controls & Wallet Connection */}
-        <div className="flex items-center gap-2" ref={walletMenuRef}>
-          {/* Mobile menu toggle button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((curr) => !curr)}
-            className="lg:hidden rounded-lg p-2 text-emerald-900/80 hover:bg-emerald-50"
-            aria-label="Toggle Navigation Menu"
-          >
-            <span className="material-symbols-outlined">{mobileMenuOpen ? "close" : "menu"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenNotifications}
-            className="rounded-lg p-2 text-emerald-900/70 hover:bg-emerald-50"
-            title="System Telemetry & Status"
-          >
-            <span className="material-symbols-outlined text-[20px]">info</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsWalletMenuOpen((curr) => !curr)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white transition-all hover:bg-emerald-900 shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
-            <span>{activeAccount ? formatAddress(activeAccount.address) : "Connect Wallet"}</span>
-          </button>
-
-          {/* Wallet dropdown modal */}
-          {isWalletMenuOpen && (
-            <div className="absolute right-4 top-[calc(100%+8px)] w-[300px] rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_16px_40px_rgba(13,40,29,0.18)] z-50">
-              <div className="space-y-1.5 pb-3 border-b border-emerald-50">
-                <p className="text-xs font-bold text-slate-800">
-                  {activeAccount ? `Address: ${formatAddress(activeAccount.address)}` : "Wallet Not Connected"}
-                </p>
-                <div className="flex items-center justify-between text-xs text-slate-600">
-                  <span>Network:</span>
-                  <span className="font-medium text-emerald-700">{chainLabel}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-600">
-                  <span>Stakeholder Role:</span>
-                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                    {activeRoleLabel || "NONE"}
-                  </span>
-                </div>
+          {isPublicPage ? (
+            <nav className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActivePage("verify")}
+                aria-label="Verify Product"
+                title="Verify Product"
+                className={`inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-dashed p-0 text-xs font-bold transition-all sm:h-auto sm:w-auto sm:px-3 sm:py-2 ${activePage === "verify" ? "border-emerald-700 bg-emerald-50 text-emerald-900 shadow-[0_0_0_2px_rgba(21,84,59,0.05)]" : "border-emerald-300 bg-white text-emerald-800 hover:border-emerald-600 hover:bg-emerald-50"}`}
+              >
+                <span className="material-symbols-outlined text-[16px]">verified</span>
+                <span className="hidden sm:inline">Verify Product</span>
+                <span className="hidden h-1 w-1 rounded-full bg-[#D6A637] sm:block" aria-hidden="true" />              </button>
+              <button
+                type="button"
+                onClick={() => setActivePage("dashboard")}
+                className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 sm:px-4 sm:py-2.5 sm:text-sm"
+              >
+                Enter Platform
+              </button>
+            </nav>
+          ) : (
+            <div className="flex items-center gap-2" ref={walletMenuRef}>
+              <button
+                type="button"
+                onClick={() => setActivePage("landing")}
+                className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 md:block"
+              >
+                Home
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePage("landing")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 md:hidden"
+                aria-label="Go to public home page"
+                title="Home"
+              >
+                <span className="material-symbols-outlined text-[20px] leading-none">home</span>
+              </button>
+              <span className={`hidden items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:flex ${
+                isContractReady ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${isContractReady ? "bg-emerald-500" : "bg-amber-500"}`} />
+                {isContractReady ? "System online" : isGanacheReady ? "Contract missing" : "Network offline"}
+              </span>
+              <div className="hidden text-right sm:block">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current role</p>
+                <p className="text-xs font-bold text-emerald-800">{activeRoleLabel || "Public viewer"}</p>
               </div>
-
-              <div className="mt-3 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onConnectWallet();
-                    setIsWalletMenuOpen(false);
-                  }}
-                  disabled={isWorking || isConnecting}
-                  className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-800 disabled:opacity-50"
-                >
-                  {activeAccount ? "Switch Account / Reconnect" : "Connect MetaMask"}
-                </button>
-
-                {activeAccount && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDisconnect();
-                      setIsWalletMenuOpen(false);
-                    }}
-                    disabled={isWorking}
-                    className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 transition-all disabled:opacity-50"
-                  >
-                    Disconnect
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-emerald-50 hover:text-emerald-800"
+                title="System status"
+                aria-label="System status"
+              >
+                <span className="material-symbols-outlined text-[20px] leading-none">info</span>
+              </button>
+              {activeAccount && <button
+                type="button"
+                onClick={() => setIsWalletMenuOpen((curr) => !curr)}
+                aria-label={activeAccount ? `Wallet ${formatAddress(activeAccount.address)}` : "Connect Wallet"}
+                title={activeAccount ? formatAddress(activeAccount.address) : "Connect Wallet"}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-800 p-0 text-xs font-bold text-white shadow-sm hover:bg-emerald-900 sm:h-auto sm:w-auto sm:gap-1.5 sm:px-3.5 sm:py-2.5"
+              >
+                <span className="material-symbols-outlined text-[18px] leading-none">account_balance_wallet</span>
+                <span className="hidden whitespace-nowrap sm:inline">{activeAccount ? formatAddress(activeAccount.address) : "Connect Wallet"}</span>
+              </button>}
+              {isWalletMenuOpen && (
+                <div className="absolute right-4 top-[calc(100%+8px)] w-[300px] rounded-2xl border border-emerald-100 bg-white p-4 shadow-xl">
+                  <div className="space-y-2 border-b border-emerald-50 pb-3 text-xs">
+                    <p className="font-bold text-slate-800">
+                      {activeAccount ? `Address: ${formatAddress(activeAccount.address)}` : "Wallet Not Connected"}
+                    </p>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Network</span><span className="font-bold text-emerald-700">{chainLabel}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Role</span><span className="font-bold text-emerald-800">{activeRoleLabel || "NONE"}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { onConnectWallet(); setIsWalletMenuOpen(false); }}
+                      disabled={isWorking || isConnecting}
+                      className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+                    >
+                      {activeAccount ? "Switch Account / Reconnect" : "Connect MetaMask"}
+                    </button>
+                    {activeAccount && (
+                      <button
+                        type="button"
+                        onClick={() => { onDisconnect(); setIsWalletMenuOpen(false); }}
+                        disabled={isWorking}
+                        className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        Disconnect
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-emerald-100 bg-white px-4 py-3 shadow-inner">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {navItems.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => {
-                  setActivePage(item.key);
-                  setMobileMenuOpen(false);
-                }}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold text-left transition-all ${
-                  activePage === item.key
-                    ? "bg-emerald-700 text-white font-bold"
-                    : "bg-slate-50 text-emerald-950 hover:bg-emerald-50"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      </header>
+      {!isPublicPage && (
+        <>
+          <SideDrawer
+            activePage={activePage}
+            setActivePage={setActivePage}
+            activeRoleLabel={activeRoleLabel}
+            hasActiveAccount={Boolean(activeAccount)}
+          />
+          <SideDrawer
+            open={drawerOpen}
+            setOpen={setDrawerOpen}
+            activePage={activePage}
+            setActivePage={setActivePage}
+            isMobile
+            activeRoleLabel={activeRoleLabel}
+            hasActiveAccount={Boolean(activeAccount)}
+          />
+        </>
       )}
-    </header>
+    </>
   );
 }

@@ -1,42 +1,5 @@
-import { useState, useMemo } from "react";
-
-// Lightweight deterministic SVG QR code pattern generator
-function generateQrSvg(text) {
-  // Deterministic 21x21 grid pattern generator based on hash
-  const size = 21;
-  const cells = [];
-
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      // Standard QR position detection patterns in corners
-      const inTopLeft = r < 7 && c < 7;
-      const inTopRight = r < 7 && c >= size - 7;
-      const inBottomLeft = r >= size - 7 && c < 7;
-
-      if (inTopLeft) {
-        const isBox = r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4);
-        cells.push(isBox);
-      } else if (inTopRight) {
-        const isBox = r === 0 || r === 6 || c === size - 7 || c === size - 1 || (r >= 2 && r <= 4 && c >= size - 5 && c <= size - 3);
-        cells.push(isBox);
-      } else if (inBottomLeft) {
-        const isBox = r === size - 7 || r === size - 1 || c === 0 || c === 6 || (r >= size - 5 && r <= size - 3 && c >= 2 && c <= 4);
-        cells.push(isBox);
-      } else {
-        const seed = Math.sin((r * size + c + Math.abs(hash)) * 999);
-        cells.push(seed > 0.15);
-      }
-    }
-  }
-
-  return { size, cells };
-}
+import { useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
 
 export default function VerifyProductPage({
   searchBatchId,
@@ -46,19 +9,40 @@ export default function VerifyProductPage({
   batchEvents = [],
   isWorking,
   formatAddress,
+  isGanacheReady,
+  onBackHome,
+  variant = "public",
 }) {
+  const isWorkspace = variant === "workspace";
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
-  const qrData = useMemo(() => {
-    const id = batchDetails?.batchId || searchBatchId || "20261001";
-    return generateQrSvg(`https://agrochain.app/verify/${id}`);
+  const verificationUrl = useMemo(() => {
+    const id = batchDetails?.batchId || searchBatchId;
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.searchParams.set("page", "verify");
+    if (id) url.searchParams.set("batchId", id);
+    return url.toString();
   }, [batchDetails?.batchId, searchBatchId]);
 
-  const handleCopyLink = () => {
-    const id = batchDetails?.batchId || searchBatchId || "20261001";
-    navigator.clipboard?.writeText(`https://agrochain.app/verify/${id}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL(verificationUrl, { errorCorrectionLevel: "M", margin: 2, width: 240 })
+      .then((dataUrl) => { if (!cancelled) setQrDataUrl(dataUrl); })
+      .catch(() => { if (!cancelled) setQrDataUrl(""); });
+    return () => { cancelled = true; };
+  }, [verificationUrl]);
+
+  const handleCopyLink = async () => {
+    if (!navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(verificationUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const handlePrint = () => {
@@ -66,12 +50,22 @@ export default function VerifyProductPage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-5xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className={isWorkspace ? "mt-8 mb-16 max-w-5xl mx-auto px-4 sm:px-6 w-full space-y-8" : "mt-20 mb-16 max-w-5xl mx-auto px-4 sm:px-6 w-full space-y-8"}>
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto space-y-2">
+        <div className="mb-5 flex justify-start">
+          <button
+            type="button"
+            onClick={onBackHome}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-50"
+          >
+            <span className="material-symbols-outlined text-[17px]">arrow_back</span>
+            {isWorkspace ? "Back to Dashboard" : "Back to Home"}
+          </button>
+        </div>
         <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
           <span className="material-symbols-outlined text-[16px]">verified</span>
-          <span>Public Consumer Verification Portal</span>
+          <span>{isWorkspace ? "Product Verification Workspace" : "Public Consumer Verification Portal"}</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-emerald-950 tracking-tight">
           Verify Product Origin & Authenticity
@@ -99,12 +93,26 @@ export default function VerifyProductPage({
           </div>
           <button
             type="submit"
-            disabled={isWorking}
+            disabled={isWorking || !isGanacheReady}
             className="rounded-xl bg-emerald-700 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-800 transition-all shadow-sm shrink-0 disabled:opacity-50"
           >
             Verify Batch
           </button>
         </form>
+        <div className={`mt-3 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold ${
+          isGanacheReady
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-amber-50 text-amber-800"
+        }`}>
+          <span className="material-symbols-outlined text-[16px]">
+            {isGanacheReady ? "cloud_done" : "cloud_off"}
+          </span>
+          <span>
+            {isGanacheReady
+              ? "Blockchain verification service is online."
+              : "Verification is temporarily unavailable because the local blockchain is offline. Start Ganache on port 7545."}
+          </span>
+        </div>
       </div>
 
       {/* Verification Certificate Card */}
@@ -118,7 +126,7 @@ export default function VerifyProductPage({
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                  Cryptographically Verified On-Chain
+                  Batch record found on the configured blockchain
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
                   Batch #{batchDetails.batchId}
@@ -176,7 +184,7 @@ export default function VerifyProductPage({
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="text-slate-400 block text-[11px]">Quality Grade</span>
                 <span className="font-bold text-emerald-700 text-sm mt-0.5 block">
-                  {batchDetails.qualityGrade || "Grade A Premium"}
+                  {batchDetails.qualityGrade || "No quality grade recorded"}
                 </span>
               </div>
 
@@ -191,32 +199,13 @@ export default function VerifyProductPage({
             {/* Visual SVG QR Code */}
             <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-emerald-50/50 border border-emerald-100 text-center">
               <div className="bg-white p-3 rounded-xl shadow-sm border border-emerald-100">
-                <svg
-                  viewBox={`0 0 ${qrData.size} ${qrData.size}`}
-                  className="w-36 h-36"
-                  shapeRendering="crispEdges"
-                >
-                  {qrData.cells.map((isBlack, index) => {
-                    const r = Math.floor(index / qrData.size);
-                    const c = index % qrData.size;
-                    return (
-                      <rect
-                        key={index}
-                        x={c}
-                        y={r}
-                        width="1"
-                        height="1"
-                        fill={isBlack ? "#064e3b" : "#ffffff"}
-                      />
-                    );
-                  })}
-                </svg>
+                {qrDataUrl ? <img src={qrDataUrl} alt={`QR code linking to verification for batch ${batchDetails.batchId}`} className="h-36 w-36" /> : <span className="flex h-36 w-36 items-center justify-center text-xs text-slate-500">Preparing QR code…</span>}
               </div>
               <span className="mt-3 font-mono text-[11px] font-bold text-emerald-950">
                 AGROCHAIN-QR-{batchDetails.batchId}
               </span>
               <span className="text-[10px] text-slate-500 mt-0.5">
-                Scan with any standard smartphone camera
+                Opens this AgroChain app’s verification page
               </span>
             </div>
           </div>

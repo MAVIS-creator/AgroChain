@@ -1,9 +1,29 @@
-@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==== Design Tokens (Light mode) ==== */
+:root {
+  --app-content-max: 1440px;
+  --app-gutter: clamp(1rem, 3vw, 3rem);
+  --bg-primary: #f5f8f5;
+  --bg-card: rgba(255, 255, 255, 0.65); /* glass‑morphism card */
+  --glass-blur: 12px;
+  --primary: #15543b;
+  --accent: #d6a637;
+  --accent-light: #f4e6b8;
+}
+
+/* ==== Glass‑morphism card helper ==== */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
 
 * {
   box-sizing: border-box;
@@ -17,8 +37,86 @@ body,
 }
 
 body {
-  font-family: Inter, "Segoe UI", sans-serif;
-  background-color: #ecfeef;
+  font-family: "DejaVu Sans", "Segoe UI", sans-serif;
+  background-color: var(--bg-primary);
+}
+
+/* Workspace layout adjustments without changing the existing application canvas. */
+.workspace-shell {
+  background: transparent;
+}
+
+.workspace-shell > main {
+  position: relative;
+  max-width: var(--app-content-max) !important;
+  margin: 0 auto 0 !important;
+  padding: 28px var(--app-gutter) 4rem !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.workspace-shell > main > .rounded-2xl,
+.workspace-shell > main > .glass-card {
+  border-color: #e1ebe3;
+  box-shadow: 0 8px 24px rgba(25, 66, 42, 0.055);
+}
+
+.workspace-shell .border-b.border-emerald-100 {
+  border-bottom-color: #dce8df;
+}
+
+.workspace-shell .shadow-sm {
+  box-shadow: 0 5px 16px rgba(25, 66, 42, 0.06);
+}
+
+@media (max-width: 1023px) {
+  .workspace-shell > main {
+    padding-top: 24px !important;
+  }
+}
+
+.workspace-status-wrap {
+  padding-top: 92px;
+  padding-left: var(--app-gutter) !important;
+  padding-right: var(--app-gutter) !important;
+}
+
+.workspace-status {
+  max-width: var(--app-content-max) !important;
+}
+
+.app-header-inner {
+  padding-left: var(--app-gutter);
+  padding-right: var(--app-gutter);
+}
+
+.app-workspace-header {
+  max-width: none;
+}
+
+.workspace-shell footer > div {
+  max-width: var(--app-content-max) !important;
+  padding-left: var(--app-gutter) !important;
+  padding-right: var(--app-gutter) !important;
+}
+
+@media (max-width: 640px) {
+  .workspace-status-wrap {
+    padding-top: 88px;
+  }
+
+  .workspace-status {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .workspace-status button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .material-symbols-outlined {

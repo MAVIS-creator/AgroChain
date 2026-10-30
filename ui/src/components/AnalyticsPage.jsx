@@ -25,18 +25,18 @@ export default function AnalyticsPage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-emerald-950">Analytics & AI Risk Insights</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-emerald-950">Performance & risk insights</h1>
             <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
               Data-Driven Intelligence
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Real-time supply chain performance metrics, dual-crop production volumes, post-harvest-loss analysis, and deterministic risk modeling.
+            Understand production volumes, post-harvest loss, transport performance, and the signals that need attention.
           </p>
         </div>
         <button
@@ -92,7 +92,7 @@ export default function AnalyticsPage({
         </div>
       </div>
 
-      {/* AI-Ready Deterministic Risk Engine Panel */}
+      {/* Transparent deterministic risk engine panel */}
       <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-emerald-50 pb-4">
           <div className="flex items-center gap-3">
@@ -101,9 +101,9 @@ export default function AnalyticsPage({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-slate-900">AI-Ready Risk Scoring Engine</h3>
+                <h3 className="font-bold text-base text-slate-900">Batch risk assessment</h3>
                 <span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-800">
-                  Deterministic Heuristic Prototype
+                  Transparent model
                 </span>
               </div>
               <p className="text-xs text-slate-500">

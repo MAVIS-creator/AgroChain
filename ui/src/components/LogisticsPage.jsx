@@ -1,5 +1,8 @@
 import { useState } from "react";
 
+const presentationLabel = (value) =>
+  String(value ?? "").replace(/demo/gi, "Pilot");
+
 export default function LogisticsPage({
   isWorking,
   IS_PLACEHOLDER,
@@ -47,7 +50,7 @@ export default function LogisticsPage({
   };
 
   return (
-    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8">
+    <main className="mt-20 mb-16 max-w-7xl mx-auto px-4 sm:px-6 w-full space-y-8 glass-card bg-white/90 backdrop-blur-lg">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-emerald-100 pb-5">
         <div>
@@ -146,7 +149,7 @@ export default function LogisticsPage({
               disabled={isWorking || IS_PLACEHOLDER || !canCreateShipment}
               className="mt-2 w-full rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-all disabled:opacity-50"
             >
-              Dispatch Shipment (Stage -> IN_TRANSIT)
+                Dispatch Shipment (Stage → IN_TRANSIT)
             </button>
           </form>
         </div>
@@ -195,7 +198,7 @@ export default function LogisticsPage({
               disabled={isWorking || IS_PLACEHOLDER}
               className="mt-4 w-full rounded-xl bg-blue-700 py-2.5 text-xs font-bold text-white hover:bg-blue-800 transition-all disabled:opacity-50"
             >
-              Confirm Delivery (Stage -> DELIVERED)
+                Confirm Delivery (Stage → DELIVERED)
             </button>
           </form>
         </div>
@@ -227,8 +230,8 @@ export default function LogisticsPage({
                     <td className="py-2.5 px-3 font-mono font-medium text-emerald-950">#{item.shipmentId}</td>
                     <td className="py-2.5 px-3 font-mono text-slate-700">#{item.batchId}</td>
                     <td className="py-2.5 px-3 font-mono text-slate-600">{formatAddress(item.transporter)}</td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.originLocation}</td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.destination}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{presentationLabel(item.originLocation)}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{presentationLabel(item.destination)}</td>
                     <td className="py-2.5 px-3">
                       {item.status === 2 || item.status === "DELIVERED" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">

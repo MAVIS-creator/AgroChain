@@ -238,7 +238,7 @@ export default function ReportsPage({
           <div>
             <h3 className="font-h3 text-h3 text-on-surface">Dataset Insights</h3>
             <p className="text-body-sm text-on-surface-variant mt-1">
-              Preprocessed cassava simulation records used for evaluation.
+              Preprocessed cassava reference records used for evaluation.
             </p>
           </div>
           <button

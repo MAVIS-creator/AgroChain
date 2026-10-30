@@ -15,26 +15,14 @@ test.describe("AgroChain End-to-End Workflow Tests", () => {
       }
     });
 
-    await page.goto("http://localhost:5173/");
-    await expect(page.getByText("AgroChain").first()).toBeVisible();
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "AgroChain home" })).toBeVisible({ timeout: 20000 });
 
-    // Verify Log New Crop Batch is present
-    await expect(page.getByRole("heading", { name: "Log New Crop Batch" })).toBeVisible();
-
-    // Fill new batch form
-    await page.getByPlaceholder("e.g. 20261001").fill("20268888");
-    await page.getByPlaceholder("e.g. 3500").fill("4200");
-    await page.getByPlaceholder("e.g. Ibadan, Oyo State").fill("Ibadan Farm Cluster");
-
-    // Click submit
-    await page.getByRole("button", { name: "Mint Crop Batch On-Chain" }).click();
-
-    // Should give clean user feedback rather than unhandled exception
-    await expect(
-      page.getByText(
-        /Please connect your MetaMask wallet|Connect MetaMask before|Wallet session is not fully initialized|Contract not ready/i,
-      ),
-    ).toBeVisible();
+    // An uninitialized wallet must be stopped at the stakeholder entry gate.
+    await page.goto("/?page=dashboard", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Enter AgroChain" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect Wallet" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log New Crop Batch" })).toHaveCount(0);
 
     expect(
       pageErrors.some((message) => message.includes("Cannot read properties of undefined (reading 'id')")),
@@ -45,7 +33,7 @@ test.describe("AgroChain End-to-End Workflow Tests", () => {
   });
 
   test("Public consumer verification portal accessible without wallet login", async ({ page }) => {
-    await page.goto("http://localhost:5173/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     // Navigate to Verify Product tab
     await page.getByRole("button", { name: "Verify Product" }).first().click();
