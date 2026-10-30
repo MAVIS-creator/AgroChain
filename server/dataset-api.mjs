@@ -148,8 +148,8 @@ async function loadDataset() {
         summary: {
           totalRecords: 0,
           totalQuantityKg: 0,
-          avgLossPct: 9.2,
-          avgTransportHours: 12,
+          avgLossPct: null,
+          avgTransportHours: null,
           byRegion: [],
           byCrop: { cassava: 0, maize: 0 },
         },
@@ -488,11 +488,11 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         generatedAt: dataset.generatedAt,
         insights: [
-          `Post-harvest loss pressure averages ${summary.avgLossPct ?? 9.2}% across tracked cassava and maize batches.`,
-          `Transport latency averages ${summary.avgTransportHours ?? 11} hours between production farm clusters and processing hubs.`,
+          summary.avgLossPct == null ? "Modeled loss estimate unavailable until the dataset is generated." : `Modeled post-harvest loss estimate: ${summary.avgLossPct}%. This is not an observed field measurement.`,
+          summary.avgTransportHours == null ? "Modeled transit estimate unavailable until the dataset is generated." : `Modeled transport duration estimate: ${summary.avgTransportHours} hours. This is not observed journey telemetry.`,
           `Total observed regional volume: ${totalQtyTonnes} tonnes, underscoring the necessity of transparent multi-stakeholder provenance.`,
           "Rapid perishability of harvested cassava roots necessitates processing within 48-72 hours to prevent Post-Harvest Physiological Deterioration.",
-          "Maize storage requires continuous moisture monitoring below 13% relative humidity equivalent to prevent aflatoxin contamination.",
+          "Maize storage needs moisture and humidity monitoring. Grain moisture content and ambient relative humidity are different measurements; this prototype does not measure aflatoxin levels.",
         ],
       });
       return;
