@@ -1,0 +1,60 @@
+name: AgroChain Validation
+
+on:
+  push:
+    branches: [main, "ci/**", "fix/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts-and-api:
+    name: Solidity contracts and local API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install reproducible dependencies
+        run: npm ci
+      - name: Compile and execute contract integration tests
+        run: npm test
+      - name: Execute local API tests
+        run: npm run test:api
+
+  ui-build-and-browser:
+    name: React build and browser smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install reproducible UI dependencies
+        run: npm ci
+      - name: Compile production UI
+        run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Execute public-access and wallet-gate browser tests
+        run: npx playwright test
+      - name: Upload Playwright diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            ui/test-results/
+            ui/playwright-report/
+          if-no-files-found: ignore
