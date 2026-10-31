@@ -1,0 +1,86 @@
+name: AgroChain Validation
+
+on:
+  push:
+    branches: [main, "ci/**", "fix/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts-and-api:
+    name: Solidity contracts and local API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install reproducible dependencies
+        run: npm ci
+      - name: Compile and execute contract integration tests
+        run: npm test
+      - name: Execute local API tests
+        run: npm run test:api
+
+  ui-build-and-browser:
+    name: React build and browser smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install reproducible UI dependencies
+        run: npm ci
+      - name: Compile production UI
+        run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Execute public-access and wallet-gate browser tests
+        run: npx playwright test
+      - name: Upload Playwright diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            ui/test-results/
+            ui/playwright-report/
+          if-no-files-found: ignore
+
+  ganache-local-integration:
+    name: Ephemeral Ganache deployment smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Compile contract
+        run: npm run compile
+      - name: Run Ganache local chain and integration script
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Disposable CI-only mnemonic: NEVER use these addresses for real value.
+          MNEMONIC="test test test test test test test test test test test junk"
+          npx --yes ganache@7.9.2 --wallet.mnemonic "$MNEMONIC" --wallet.totalAccounts 10 --wallet.defaultBalance 1000 --chain.chainId 1337 --chain.allowUnlimitedContractSize true --server.port 7545 --logging.quiet > /tmp/agrochain-ganache.log 2>&1 &
+          RPC_PID=$!
+          trap 'kill $RPC_PID 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ok=false; for(let i=0;i<45;i++){ try { const r=await fetch("http://127.0.0.1:7545",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",method:"eth_blockNumber",params:[],id:1})}); if((await r.json()).result){ok=true;break} }catch{} await new Promise(r=>setTimeout(r,2000)); } if(!ok)process.exit(1)'
+          GANACHE_PRIVATE_KEY="$(node --input-type=module -e 'import { Wallet } from "ethers"; console.log(Wallet.fromPhrase("test test test test test test test test test test test junk").privateKey)')" npm run setup:test
