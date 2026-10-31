@@ -45,6 +45,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Verify lockfile package tree after install
         run: npm ls yaml
+      - name: Report lock metadata for missing 2.x YAML dependency
+        run: node -e 'const p=require("./package-lock.json").packages; console.log("LOCK_YAML_2",JSON.stringify(Object.entries(p).filter(([k,v])=>k.endsWith("/yaml") && /^2\\./.test(v.version))))'
       - name: Compile production UI
         run: npm run build
       - name: Install Playwright Chromium
