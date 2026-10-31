@@ -41,12 +41,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - name: Install UI dependencies (repair incomplete existing lock metadata)
-        run: npm install --no-audit --no-fund
-      - name: Verify lockfile package tree after install
-        run: npm ls yaml
-      - name: Report lock metadata for missing 2.x YAML dependency
-        run: node -e 'const p=require("./package-lock.json").packages; console.log("LOCK_YAML_2",JSON.stringify(Object.entries(p).filter(([k,v])=>k.endsWith("/yaml") && v.version?.startsWith("2."))))'
+      - name: Install reproducible UI dependencies
+        run: npm ci
       - name: Compile production UI
         run: npm run build
       - name: Install Playwright Chromium
